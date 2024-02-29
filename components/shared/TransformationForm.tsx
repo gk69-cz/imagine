@@ -24,11 +24,12 @@ import {
 
 import { Input } from "@/components/ui/input"
 import { aspectRatioOptions, defaultValues, transformationTypes } from "@/constants"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { CustomField } from "./CustomField"
 import { Value } from "@radix-ui/react-select"
-import { AspectRatioKey } from "@/lib/utils"
+import { AspectRatioKey, debounce, deepMergeObjects } from "@/lib/utils"
 import { config } from "process"
+import MediaUploader from "./MediaUploader"
 
 export const formSchema = z.object({
     title: z.string(),
@@ -48,7 +49,7 @@ const TransformationForms = ({ action, data = null, type, creditBalance,config =
     const [isSubmitting, setIsSubmiting] = useState(false);
     const [isTransforming,setIsTransforming]= useState(false);
     const [transformationConfig, settransformationConfig] = useState(config)
-
+    const [isPending, startTransition] = useTransition()
 
     const initialValues = data && action === 'Update' ? {
         title: data?.title,
@@ -65,20 +66,52 @@ const TransformationForms = ({ action, data = null, type, creditBalance,config =
 
     // 2. Define a submit handler.
     function onSubmit(values: z.infer<typeof formSchema>) {
+
         console.log(values)
     }
-    const onSelectFieldHandler = (value: string, onChangeField: (value: string) => void) => {
+    const onSelectFieldHandler = (
+        value: string,
+        onChangeField: (value: string) => void) => {
+            const imageSize = aspectRatioOptions[value as AspectRatioKey]
 
-    }
-    const onTransformHandler = () =>{
+            setImage((prevState:any) => ({
+                ...prevState,
+                aspectRatio:imageSize.aspectRatio,
+                width:imageSize.width,
+                height:imageSize.height
+            }))
+            setnewTransformation(transformationType.config)
+            return onChangeField(value)
+        }
+    const onTransformHandler = async() =>{
+        setIsTransforming(true)
 
+        deepMergeObjects(newTransformation,transformationConfig)
+        setnewTransformation(null)
+        startTransition(async () => {
+
+        })
+
+        
     }
 
     const onInputChangeHandler = (
-        fieldname: string,
+        fieldName: string,
         value: string,
         type: string,
         onChangeField: (value: string) => void) => {
+            debounce(() =>{
+                setnewTransformation((prevState:any) => ({
+                    ...prevState,
+                    [type]:{
+                        ...prevState?.[type],
+                        [fieldName === 'prompt' ? 'prompt' : 'to']:
+                        value
+                    }
+
+                }))
+                return onChangeField(value)
+            },1000);
     }
     return (
         <Form {...form}>
@@ -156,6 +189,25 @@ const TransformationForms = ({ action, data = null, type, creditBalance,config =
                     </div>
                 )}
 
+<div className="media-uploader-field">
+                    <CustomField
+                     control={form.control}
+                     formLabel="label"
+                     name="publicId"
+                     render={({field}) =>(
+                        <MediaUploader 
+                        onValueChange={field.onChange}
+                        setImage={setImage}
+                        publicId={field.value}
+                        image={image}
+                        type={type}
+                        
+                        />
+                     )}
+
+                     />
+                </div>  
+
                 <div className="flex flex-col gap-4">
                 <Button
                  type="button"
@@ -164,7 +216,7 @@ const TransformationForms = ({ action, data = null, type, creditBalance,config =
                  onClick={onTransformHandler}
                  > {isTransforming ? 'Transforming...' : 'Apply Transformation'}
                  </Button>
-
+                                   
                 <Button
                  type="submit"
                  className="submit-button capitalize"
