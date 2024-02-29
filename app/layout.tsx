@@ -11,7 +11,7 @@ const IBM_Plex = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Imagine",
+  title: "PixifyAI",
   description: "AI-powered saas application",
 };
 
